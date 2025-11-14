@@ -1,0 +1,10 @@
+projects:
+- branch1: v0.7.0
+  branch2: v0.8.0
+  path: /path/to/go/mod
+- branch1: v1.16.0
+  branch2: v1.17.1
+  path: /path/to/go/mod
+- branch1: v0.3.6
+  branch2: v0.3.28
+  path: /path/to/go/mod
