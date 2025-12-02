@@ -43,10 +43,12 @@ class RepositoryManager:
             self.temp_dir = Path(temp_dir_str)
             logger.info(f"Created temporary directory: {self.temp_dir}")
 
-            # Execute git clone with shallow clone for efficiency
+            # Execute git clone without depth limit to get all tags and branches
+            # Note: We don't use --depth 1 because it doesn't fetch tags,
+            # which are commonly used for version references
             logger.info(f"Cloning repository: {self.repo_url}")
             result = subprocess.run(
-                ["git", "clone", "--depth", "1", self.repo_url, str(self.temp_dir)],
+                ["git", "clone", self.repo_url, str(self.temp_dir)],
                 check=True,
                 capture_output=True,
                 text=True,
