@@ -68,19 +68,31 @@ class Config:
         Raises:
             ConfigError: If the configuration is invalid.
         """
+        # Legacy format: string means path
         if isinstance(proj_data, str):
             return ProjectConfig(path=proj_data)
 
-        if not isinstance(proj_data, dict) or "path" not in proj_data:
+        if not isinstance(proj_data, dict):
             raise ConfigError(
-                "Invalid project configuration: must have 'path' key"
+                "Invalid project configuration format: must be a string or dictionary"
             )
 
-        return ProjectConfig(
-            path=proj_data["path"],
-            branch1=proj_data.get("branch1"),
-            branch2=proj_data.get("branch2"),
-        )
+        # Extract fields
+        path = proj_data.get("path")
+        repo = proj_data.get("repo")
+        branch1 = proj_data.get("branch1")
+        branch2 = proj_data.get("branch2")
+
+        # Validation happens in ProjectConfig.__post_init__
+        try:
+            return ProjectConfig(
+                path=path,
+                repo=repo,
+                branch1=branch1,
+                branch2=branch2,
+            )
+        except ValueError as e:
+            raise ConfigError(f"Invalid project configuration: {e}") from e
 
     @staticmethod
     def parse_legacy_format(

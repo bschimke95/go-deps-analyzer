@@ -56,9 +56,20 @@ class ComparisonResult:
 class ProjectConfig:
     """Configuration for a project to analyze."""
 
-    path: str
+    path: str | None = None
+    repo: str | None = None
     branch1: str | None = None
     branch2: str | None = None
+
+    def __post_init__(self):
+        """Validate that exactly one of path or repo is provided."""
+        if (self.path is None) == (self.repo is None):
+            raise ValueError("Exactly one of 'path' or 'repo' must be provided")
+
+    @property
+    def is_repo_based(self) -> bool:
+        """Check if this config uses a GitHub repository."""
+        return self.repo is not None
 
     @property
     def is_comparison(self) -> bool:

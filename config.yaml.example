@@ -1,10 +1,57 @@
 projects:
-- branch1: v0.7.0
-  branch2: v0.8.0
-  path: /path/to/go/mod
-- branch1: v1.16.0
-  branch2: v1.17.1
-  path: /path/to/go/mod
-- branch1: v0.3.6
-  branch2: v0.3.28
-  path: /path/to/go/mod
+  # ============================================================================
+  # LOCAL PATH-BASED PROJECTS
+  # ============================================================================
+  
+  # Compare two branches/tags in a local project
+  - path: /path/to/go/mod
+    branch1: v0.7.0
+    branch2: v0.8.0
+  
+  # Analyze a single branch in a local project
+  - path: /path/to/local/project
+    branch1: main
+  
+  # Analyze the current branch (no branch specified)
+  - path: /path/to/another/project
+  
+  # ============================================================================
+  # GITHUB REPOSITORY-BASED PROJECTS
+  # ============================================================================
+  
+  # Compare two branches/tags in a GitHub repository
+  - repo: https://github.com/user/project.git
+    branch1: v1.16.0
+    branch2: v1.17.1
+  
+  # Analyze a single branch in a GitHub repository
+  - repo: https://github.com/user/another-project.git
+    branch1: main
+  
+  # Analyze the default branch (no branch specified)
+  - repo: https://github.com/user/third-project.git
+  
+  # Using HTTPS URL format
+  - repo: https://github.com/kubernetes/kubernetes.git
+    branch1: v1.33.0
+    branch2: v1.34.0
+  
+  # ============================================================================
+  # MIXED CONFIGURATIONS
+  # ============================================================================
+  
+  # You can mix local paths and GitHub repositories in the same config file
+  - path: /home/user/local-api-server
+    branch1: v1.0.0
+    branch2: v2.0.0
+  
+  - repo: https://github.com/user/remote-worker.git
+    branch1: v1.0.0
+    branch2: v2.0.0
+  
+  - path: /home/user/local-scheduler
+    branch1: main
+  
+  - repo: https://github.com/user/remote-metrics.git
+    branch1: main
+  

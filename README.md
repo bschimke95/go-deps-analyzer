@@ -7,10 +7,14 @@ A Python tool to analyze Go module dependencies across different branches and pr
 - 📊 Analyze Go module dependencies for any project
 - 🔄 Compare dependencies between two branches/tags
 - 📦 Batch analysis of multiple projects using configuration files
+- 🌐 **Support for GitHub repositories** - automatically clone and analyze remote repositories
 - 📈 Detailed statistics including total, direct, and indirect dependencies
 - 🎯 Identify added, removed, and version-changed dependencies
 - 🔍 Verbose mode for detailed dependency lists
 - 🌳 Works with any Git branch, tag, or commit
+- 🔀 **Mix local paths and remote repositories** in the same configuration
+- 🧹 Automatic cleanup of temporary directories for cloned repositories
+- 🔒 Clear error messages for troubleshooting configuration and network issues
 
 ## Quick Start
 
@@ -19,6 +23,7 @@ A Python tool to analyze Go module dependencies across different branches and pr
 - Python 3.7 or higher
 - Git installed and accessible in PATH
 - Go projects with `go.mod` files
+- Internet connection (for analyzing GitHub repositories)
 
 ### Installation
 
@@ -61,16 +66,24 @@ Create a configuration file (e.g., `config.yaml`):
 
 ```yaml
 projects:
-  # Compare two versions
+  # Local path - Compare two versions
   - path: /path/to/project1
     branch1: v0.7.0
     branch2: v0.8.0
 
-  # Analyze single branch
+  # GitHub repository - Compare two versions
+  - repo: https://github.com/user/project.git
+    branch1: v1.0.0
+    branch2: v2.0.0
+
+  # Local path - Analyze single branch
   - path: /path/to/project2
     branch1: main
 
-  # Use current branch
+  # GitHub repository - Analyze default branch
+  - repo: https://github.com/user/another-project.git
+
+  # Mix local and remote projects
   - path: /path/to/project3
 ```
 
@@ -79,7 +92,7 @@ Run the analysis:
 python3 -m go_deps_analyzer -c config.yaml
 ```
 
-See the [examples/config.yaml](examples/config.yaml) file for more configuration options.
+See the [config.yaml.example](config.yaml.example) file for more configuration options.
 
 #### Verbose Output
 
@@ -108,19 +121,43 @@ Check dependencies on your current working branch:
 python3 -m go_deps_analyzer -p /path/to/your/project
 ```
 
-### Example 3: Multiple Projects Analysis
+### Example 3: Analyze a GitHub Repository
+
+Analyze a public GitHub repository without cloning it manually:
+```bash
+# Create a simple config
+cat > analyze-repo.yaml << EOF
+projects:
+  - repo: https://github.com/prometheus/prometheus.git
+    branch1: v2.45.0
+    branch2: v2.46.0
+EOF
+
+# Run the analysis
+python3 -m go_deps_analyzer -c analyze-repo.yaml -v
+```
+
+### Example 4: Mixed Local and Remote Projects
 
 Create a `my-projects.yaml`:
 ```yaml
 projects:
+  # Local project
   - path: /home/user/projects/api-server
     branch1: v1.0.0
     branch2: v2.0.0
   
+  # GitHub repository
+  - repo: https://github.com/user/shared-library.git
+    branch1: v1.0.0
+    branch2: v2.0.0
+  
+  # Another local project
   - path: /home/user/projects/worker
     branch1: main
   
-  - path: /home/user/projects/scheduler
+  # Another GitHub repository
+  - repo: https://github.com/user/common-utils.git
     branch1: v1.5.0
     branch2: v1.6.0
 ```
@@ -171,36 +208,49 @@ With `-v` flag, you'll also see the complete list of dependencies and their vers
 
 ## Configuration File Format
 
-YAML configuration supports multiple projects with flexible branch specifications:
+YAML configuration supports multiple projects with flexible branch specifications. You can use either local paths or GitHub repositories:
 
 ```yaml
 projects:
+  # Local path-based project
   - path: /absolute/path/to/project1
     branch1: v1.0.0        # First branch/tag to analyze
     branch2: v2.0.0        # (Optional) Second branch for comparison
 
+  # GitHub repository-based project
+  - repo: https://github.com/user/project.git
+    branch1: v1.0.0        # First branch/tag to analyze
+    branch2: v2.0.0        # (Optional) Second branch for comparison
+
+  # Local path - single branch
   - path: /absolute/path/to/project2
     branch1: main          # Analyze single branch
 
-  - path: /absolute/path/to/project3
-    # No branches specified = use current branch
+  # GitHub repository - default branch
+  - repo: https://github.com/user/another-project.git
+    # No branches specified = use default branch
+
+  # You can mix local and remote projects in the same config
 ```
 
-## How It Works
+**Important**: Each project must have exactly one of `path` or `repo`, not both.
 
-1. **Git Operations**: Checks out specified branches using Git
-2. **Dependency Parsing**: Parses `go.mod` files to extract dependencies
-3. **Analysis**: Categorizes dependencies as direct or indirect
-4. **Comparison**: When two branches are specified, identifies differences
-5. **Output**: Presents results in a clear, readable format
+### Example: Analyzing Kubernetes
 
-## Troubleshooting
+```bash
+# Create a config file
+cat > kubernetes-analysis.yaml << EOF
+projects:
+  - repo: https://github.com/kubernetes/kubernetes.git
+    branch1: v1.33.0
+    branch2: v1.34.0
+EOF
 
-**Git errors**: Ensure the project path is a valid Git repository and specified branches/tags exist.
+# Run the analysis
+python3 -m go_deps_analyzer -c kubernetes-analysis.yaml -v
+```
 
-**Permission errors**: Make sure you have read access to the project directories.
-
-**Go module errors**: Verify that the project has a valid `go.mod` file.
+The tool will automatically clone Kubernetes, analyze both versions, and clean up afterward.
 
 ## License
 

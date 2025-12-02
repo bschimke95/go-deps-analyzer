@@ -11,6 +11,7 @@ from .config import Config, ConfigError
 from .git_utils import GitError, GitManager
 from .models import ProjectConfig
 from .output import OutputFormatter
+from .repo_manager import RepositoryError, RepositoryManager
 
 # Configure logging
 logging.basicConfig(
@@ -103,14 +104,50 @@ def analyze_project(
         config: Project configuration.
         formatter: Output formatter for displaying results.
     """
-    formatter.print_section_header(f"Project: {config.path}")
+    if config.is_repo_based:
+        # Use repository manager for remote repos
+        try:
+            repo_manager = RepositoryManager(config.repo)
+            with repo_manager:
+                local_path = str(repo_manager.temp_dir)
+                _perform_analysis(local_path, config, formatter)
+        except RepositoryError as e:
+            logger.error(f"Repository error for '{config.repo}': {e}")
+            raise
+    else:
+        # Use path directly for local projects
+        _perform_analysis(config.path, config, formatter)
+
+
+def _perform_analysis(
+    local_path: str,
+    config: ProjectConfig,
+    formatter: OutputFormatter,
+) -> None:
+    """Perform the actual analysis on a local path.
+
+    Args:
+        local_path: Local file system path to analyze.
+        config: Project configuration.
+        formatter: Output formatter for displaying results.
+    """
+    # Display project header with source type
+    if config.is_repo_based:
+        project_label = f"Project: {config.repo} (cloned to {local_path})"
+    else:
+        project_label = f"Project: {local_path}"
+    
+    formatter.print_section_header(project_label)
 
     try:
-        git_manager = GitManager(config.path)
-        analyzer = DependencyAnalyzer(config.path)
+        git_manager = GitManager(local_path)
+        analyzer = DependencyAnalyzer(local_path)
     except (GitError, AnalyzerError) as e:
-        logger.error(f"Error initializing project: {e}")
-        return
+        if config.is_repo_based:
+            logger.error(f"Error initializing repository project '{config.repo}': {e}")
+        else:
+            logger.error(f"Error initializing local project '{config.path}': {e}")
+        raise
 
     # Comparison mode: analyze two branches
     if config.is_comparison:
@@ -139,8 +176,9 @@ def _analyze_comparison_mode(
     """
     # Analyze first branch
     if not git_manager.checkout_branch(config.branch1):
-        logger.error(f"Failed to checkout {config.branch1}, skipping project")
-        return
+        error_msg = f"Failed to checkout {config.branch1}, skipping project"
+        logger.error(error_msg)
+        raise GitError(error_msg)
 
     actual_branch1 = git_manager.get_current_branch()
     print(f"\nAnalyzing branch: {actual_branch1}")
@@ -149,14 +187,15 @@ def _analyze_comparison_mode(
         dep_map1 = analyzer.get_dependencies()
     except AnalyzerError as e:
         logger.error(f"Error analyzing dependencies: {e}")
-        return
+        raise
 
     formatter.print_dependency_stats(dep_map1, actual_branch1)
 
     # Analyze second branch
     if not git_manager.checkout_branch(config.branch2):
-        logger.error(f"Failed to checkout {config.branch2}, skipping comparison")
-        return
+        error_msg = f"Failed to checkout {config.branch2}, skipping comparison"
+        logger.error(error_msg)
+        raise GitError(error_msg)
 
     actual_branch2 = git_manager.get_current_branch()
     print(f"\nAnalyzing branch: {actual_branch2}")
@@ -165,7 +204,7 @@ def _analyze_comparison_mode(
         dep_map2 = analyzer.get_dependencies()
     except AnalyzerError as e:
         logger.error(f"Error analyzing dependencies: {e}")
-        return
+        raise
 
     formatter.print_dependency_stats(dep_map2, actual_branch2)
 
@@ -192,8 +231,9 @@ def _analyze_single_mode(
     """
     if config.branch1:
         if not git_manager.checkout_branch(config.branch1):
-            logger.error(f"Failed to checkout {config.branch1}, skipping project")
-            return
+            error_msg = f"Failed to checkout {config.branch1}, skipping project"
+            logger.error(error_msg)
+            raise GitError(error_msg)
 
     branch = git_manager.get_current_branch()
     print(f"Branch: {branch}")
@@ -202,7 +242,7 @@ def _analyze_single_mode(
         dep_map = analyzer.get_dependencies()
     except AnalyzerError as e:
         logger.error(f"Error analyzing dependencies: {e}")
-        return
+        raise
 
     formatter.print_dependency_stats(dep_map, branch)
 
@@ -250,15 +290,33 @@ def main(argv: List[str] | None = None) -> int:
         logger.error("No projects configured for analysis")
         return 1
 
-    # Analyze each project
-    for project_config in projects:
-        try:
-            analyze_project(project_config, formatter)
-        except Exception as e:
-            logger.error(f"Unexpected error analyzing project: {e}", exc_info=True)
-            continue
+    # Track repository managers for cleanup
+    repo_managers: List[RepositoryManager] = []
+    has_errors = False
 
-    return 0
+    try:
+        # Analyze each project
+        for project_config in projects:
+            try:
+                analyze_project(project_config, formatter)
+            except (RepositoryError, GitError, AnalyzerError) as e:
+                # Log the error with project context
+                project_id = project_config.repo if project_config.is_repo_based else project_config.path
+                logger.error(f"Error analyzing project '{project_id}': {e}")
+                has_errors = True
+                # Abort processing on first error as per requirement 4.3
+                break
+            except Exception as e:
+                project_id = project_config.repo if project_config.is_repo_based else project_config.path
+                logger.error(f"Unexpected error analyzing project '{project_id}': {e}", exc_info=True)
+                has_errors = True
+                # Abort processing on first error
+                break
+    finally:
+        # Cleanup is handled by context managers in analyze_project
+        pass
+
+    return 1 if has_errors else 0
 
 
 if __name__ == "__main__":
