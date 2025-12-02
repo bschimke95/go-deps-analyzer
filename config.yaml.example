@@ -3,12 +3,12 @@ projects:
   # LOCAL PATH-BASED PROJECTS
   # ============================================================================
   
-  # Compare two branches/tags in a local project
+  # Compare two branches, tags, or commits in a local project
   - path: /path/to/go/mod
     branch1: v0.7.0
     branch2: v0.8.0
   
-  # Analyze a single branch in a local project
+  # Analyze a single branch, tag, or commit in a local project
   - path: /path/to/local/project
     branch1: main
   
@@ -19,12 +19,12 @@ projects:
   # GITHUB REPOSITORY-BASED PROJECTS
   # ============================================================================
   
-  # Compare two branches/tags in a GitHub repository
+  # Compare two branches, tags, or commits in a GitHub repository
   - repo: https://github.com/user/project.git
     branch1: v1.16.0
     branch2: v1.17.1
   
-  # Analyze a single branch in a GitHub repository
+  # Analyze a single branch, tag, or commit in a GitHub repository
   - repo: https://github.com/user/another-project.git
     branch1: main
   

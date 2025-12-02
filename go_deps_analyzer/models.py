@@ -33,7 +33,12 @@ class DependencyMap:
 
 @dataclass
 class ComparisonResult:
-    """Results from comparing two dependency maps."""
+    """Results from comparing two dependency maps.
+    
+    Attributes:
+        branch1: First branch or tag name.
+        branch2: Second branch or tag name.
+    """
 
     branch1: str
     branch2: str
@@ -46,7 +51,7 @@ class ComparisonResult:
     dep_map2: DependencyMap = field(default_factory=DependencyMap)
 
     def has_changes(self) -> bool:
-        """Check if there are any changes between the two branches."""
+        """Check if there are any changes between the two branches or tags."""
         return bool(
             self.new_deps or self.removed_deps or self.version_changes
         )
@@ -54,7 +59,14 @@ class ComparisonResult:
 
 @dataclass
 class ProjectConfig:
-    """Configuration for a project to analyze."""
+    """Configuration for a project to analyze.
+    
+    Attributes:
+        path: Local file system path to the project (mutually exclusive with repo).
+        repo: GitHub repository URL (mutually exclusive with path).
+        branch1: First branch or tag to analyze.
+        branch2: Second branch or tag for comparison (optional).
+    """
 
     path: str | None = None
     repo: str | None = None
@@ -73,10 +85,10 @@ class ProjectConfig:
 
     @property
     def is_comparison(self) -> bool:
-        """Check if this is a comparison between two branches."""
+        """Check if this is a comparison between two branches or tags."""
         return self.branch1 is not None and self.branch2 is not None
 
     @property
     def is_single_branch(self) -> bool:
-        """Check if this analyzes a single branch."""
+        """Check if this analyzes a single branch or tag."""
         return self.branch1 is not None and self.branch2 is None

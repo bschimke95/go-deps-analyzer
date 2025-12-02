@@ -55,10 +55,10 @@ class GitManager:
             return "N/A"
 
     def checkout_branch(self, branch: Optional[str] = None) -> bool:
-        """Checkout to a specific branch if specified.
+        """Checkout to a specific branch or tag if specified.
 
         Args:
-            branch: Branch name to checkout. If None, no checkout is performed.
+            branch: Branch or tag name to checkout. If None, no checkout is performed.
 
         Returns:
             True if checkout was successful or not needed, False otherwise.

@@ -5,13 +5,13 @@ A Python tool to analyze Go module dependencies across different branches and pr
 ## Features
 
 - 📊 Analyze Go module dependencies for any project
-- 🔄 Compare dependencies between two branches/tags
+- 🔄 Compare dependencies between two branches, tags, or commits
 - 📦 Batch analysis of multiple projects using configuration files
 - 🌐 **Support for GitHub repositories** - automatically clone and analyze remote repositories
 - 📈 Detailed statistics including total, direct, and indirect dependencies
 - 🎯 Identify added, removed, and version-changed dependencies
 - 🔍 Verbose mode for detailed dependency lists
-- 🌳 Works with any Git branch, tag, or commit
+- 🌳 Works with any Git branch, tag, or commit reference
 - 🔀 **Mix local paths and remote repositories** in the same configuration
 - 🧹 Automatic cleanup of temporary directories for cloned repositories
 - 🔒 Clear error messages for troubleshooting configuration and network issues
@@ -48,9 +48,9 @@ Analyze a specific branch or tag:
 python3 -m go_deps_analyzer -p /path/to/your/go/project -b v1.0.0
 ```
 
-#### Compare Two Branches
+#### Compare Two Branches or Tags
 
-Compare dependencies between two versions:
+Compare dependencies between two versions (branches, tags, or commits):
 ```bash
 python3 -m go_deps_analyzer -p /path/to/your/go/project -b v1.0.0 -B v2.0.0
 ```
@@ -214,17 +214,17 @@ YAML configuration supports multiple projects with flexible branch specification
 projects:
   # Local path-based project
   - path: /absolute/path/to/project1
-    branch1: v1.0.0        # First branch/tag to analyze
-    branch2: v2.0.0        # (Optional) Second branch for comparison
+    branch1: v1.0.0        # First branch, tag, or commit to analyze
+    branch2: v2.0.0        # (Optional) Second branch, tag, or commit for comparison
 
   # GitHub repository-based project
   - repo: https://github.com/user/project.git
-    branch1: v1.0.0        # First branch/tag to analyze
-    branch2: v2.0.0        # (Optional) Second branch for comparison
+    branch1: v1.0.0        # First branch, tag, or commit to analyze
+    branch2: v2.0.0        # (Optional) Second branch, tag, or commit for comparison
 
-  # Local path - single branch
+  # Local path - single branch or tag
   - path: /absolute/path/to/project2
-    branch1: main          # Analyze single branch
+    branch1: main          # Analyze single branch or tag
 
   # GitHub repository - default branch
   - repo: https://github.com/user/another-project.git

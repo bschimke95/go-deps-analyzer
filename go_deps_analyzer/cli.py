@@ -76,13 +76,13 @@ Examples:
         "-b",
         "--branch",
         type=str,
-        help="Branch to analyze (use with --project)",
+        help="Branch or tag to analyze (use with --project)",
     )
     parser.add_argument(
         "-B",
         "--branch2",
         type=str,
-        help="Second branch for comparison (use with --project and --branch)",
+        help="Second branch or tag for comparison (use with --project and --branch)",
     )
     parser.add_argument(
         "--log-level",
