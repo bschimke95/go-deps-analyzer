@@ -8,6 +8,7 @@ from typing import List
 from . import __version__
 from .analyzer import AnalyzerError, DependencyAnalyzer
 from .config import Config, ConfigError
+from .csv_exporter import CSVExportError, CSVExporter, get_project_name
 from .git_utils import GitError, GitManager
 from .models import ProjectConfig
 from .output import OutputFormatter
@@ -46,6 +47,12 @@ Examples:
 
   # Verbose output
   %(prog)s -c config.yaml -v
+
+  # Export results to CSV
+  %(prog)s -c config.yaml -o results.csv
+
+  # Export with verbose console output
+  %(prog)s -c config.yaml -v -o results.csv
         """,
     )
 
@@ -90,6 +97,12 @@ Examples:
         default="INFO",
         help="Set the logging level",
     )
+    parser.add_argument(
+        "-o",
+        "--csv-output",
+        type=str,
+        help="Path to CSV file for exporting analysis results",
+    )
 
     return parser
 
@@ -97,12 +110,14 @@ Examples:
 def analyze_project(
     config: ProjectConfig,
     formatter: OutputFormatter,
+    project_name: str = "",
 ) -> None:
     """Analyze a single project based on its configuration.
 
     Args:
         config: Project configuration.
         formatter: Output formatter for displaying results.
+        project_name: Name of the project for CSV export.
     """
     if config.is_repo_based:
         # Use repository manager for remote repos
@@ -110,19 +125,20 @@ def analyze_project(
             repo_manager = RepositoryManager(config.repo)
             with repo_manager:
                 local_path = str(repo_manager.temp_dir)
-                _perform_analysis(local_path, config, formatter)
+                _perform_analysis(local_path, config, formatter, project_name)
         except RepositoryError as e:
             logger.error(f"Repository error for '{config.repo}': {e}")
             raise
     else:
         # Use path directly for local projects
-        _perform_analysis(config.path, config, formatter)
+        _perform_analysis(config.path, config, formatter, project_name)
 
 
 def _perform_analysis(
     local_path: str,
     config: ProjectConfig,
     formatter: OutputFormatter,
+    project_name: str = "",
 ) -> None:
     """Perform the actual analysis on a local path.
 
@@ -130,6 +146,7 @@ def _perform_analysis(
         local_path: Local file system path to analyze.
         config: Project configuration.
         formatter: Output formatter for displaying results.
+        project_name: Name of the project for CSV export.
     """
     # Display project header with source type
     if config.is_repo_based:
@@ -151,7 +168,7 @@ def _perform_analysis(
 
     # Comparison mode: analyze two branches
     if config.is_comparison:
-        _analyze_comparison_mode(config, git_manager, analyzer, formatter)
+        _analyze_comparison_mode(config, git_manager, analyzer, formatter, project_name)
 
     # Single branch mode
     else:
@@ -165,6 +182,7 @@ def _analyze_comparison_mode(
     git_manager: GitManager,
     analyzer: DependencyAnalyzer,
     formatter: OutputFormatter,
+    project_name: str = "",
 ) -> None:
     """Analyze two branches for comparison.
 
@@ -173,6 +191,7 @@ def _analyze_comparison_mode(
         git_manager: Git manager instance.
         analyzer: Dependency analyzer instance.
         formatter: Output formatter.
+        project_name: Name of the project for CSV export.
     """
     # Analyze first branch
     if not git_manager.checkout_branch(config.branch1):
@@ -212,7 +231,7 @@ def _analyze_comparison_mode(
     result = DependencyAnalyzer.compare_dependencies(
         dep_map1, dep_map2, actual_branch1, actual_branch2
     )
-    formatter.print_comparison_results(result)
+    formatter.print_comparison_results(result, project_name)
 
 
 def _analyze_single_mode(
@@ -262,8 +281,17 @@ def main(argv: List[str] | None = None) -> int:
     # Set logging level
     logging.getLogger().setLevel(getattr(logging, args.log_level))
 
+    # Create CSV exporter if output path is provided
+    csv_exporter = None
+    if args.csv_output:
+        try:
+            csv_exporter = CSVExporter(args.csv_output)
+        except CSVExportError as e:
+            logger.error(f"Failed to initialize CSV export: {e}")
+            return 1
+
     # Create output formatter
-    formatter = OutputFormatter(verbose=args.verbose)
+    formatter = OutputFormatter(verbose=args.verbose, csv_exporter=csv_exporter)
 
     # Determine project configurations
     projects: List[ProjectConfig] = []
@@ -295,10 +323,16 @@ def main(argv: List[str] | None = None) -> int:
     has_errors = False
 
     try:
+        # Write CSV summary header if exporter is available
+        if csv_exporter:
+            csv_exporter.write_summary_header()
+
         # Analyze each project
         for project_config in projects:
             try:
-                analyze_project(project_config, formatter)
+                # Extract project name for CSV export
+                project_name = get_project_name(project_config) if csv_exporter else ""
+                analyze_project(project_config, formatter, project_name)
             except (RepositoryError, GitError, AnalyzerError) as e:
                 # Log the error with project context
                 project_id = project_config.repo if project_config.is_repo_based else project_config.path
@@ -312,9 +346,34 @@ def main(argv: List[str] | None = None) -> int:
                 has_errors = True
                 # Abort processing on first error
                 break
+
+        # Write total summary row and detail table if CSV export is enabled
+        if csv_exporter and not has_errors:
+            # Write total summary row
+            if hasattr(csv_exporter, '_totals'):
+                csv_exporter.write_total_summary_row(
+                    csv_exporter._totals['added'],
+                    csv_exporter._totals['removed'],
+                    csv_exporter._totals['changed']
+                )
+            
+            csv_exporter.write_blank_separator()
+            csv_exporter.write_detail_header()
+            
+            # Write all collected detail rows
+            if hasattr(csv_exporter, '_detail_rows'):
+                for project_name, module_name, change_type, old_versions, new_versions in csv_exporter._detail_rows:
+                    csv_exporter.write_detail_row(
+                        project_name, module_name, change_type, old_versions, new_versions
+                    )
     finally:
-        # Cleanup is handled by context managers in analyze_project
-        pass
+        # Close CSV exporter
+        if csv_exporter:
+            try:
+                csv_exporter.close()
+            except CSVExportError as e:
+                logger.error(f"Error closing CSV file: {e}")
+                has_errors = True
 
     return 1 if has_errors else 0
 

@@ -1,19 +1,25 @@
 """Output formatting and display utilities."""
 
+from typing import TYPE_CHECKING
 
 from .models import ComparisonResult, DependencyMap
+
+if TYPE_CHECKING:
+    from .csv_exporter import CSVExporter
 
 
 class OutputFormatter:
     """Formats and displays analysis results."""
 
-    def __init__(self, verbose: bool = False):
+    def __init__(self, verbose: bool = False, csv_exporter: "CSVExporter | None" = None):
         """Initialize OutputFormatter.
 
         Args:
             verbose: Whether to display detailed output.
+            csv_exporter: Optional CSV exporter for writing results to CSV.
         """
         self.verbose = verbose
+        self.csv_exporter = csv_exporter
 
     def print_section_header(self, title: str, char: str = "=") -> None:
         """Print a formatted section header.
@@ -55,11 +61,12 @@ class OutputFormatter:
         if self.verbose:
             self._print_all_dependencies(dep_map)
 
-    def print_comparison_results(self, result: ComparisonResult) -> None:
+    def print_comparison_results(self, result: ComparisonResult, project_name: str = "") -> None:
         """Print comparison results between two branches.
 
         Args:
             result: The comparison result to display.
+            project_name: Name of the project being analyzed.
         """
         print("\n" + "-" * 60)
         print(
@@ -89,6 +96,10 @@ class OutputFormatter:
         )
         if self.verbose and result.version_changes:
             self._print_version_changes(result)
+
+        # Write to CSV if exporter is available
+        if self.csv_exporter and project_name:
+            self._write_to_csv(result, project_name)
 
     def _print_all_dependencies(self, dep_map: DependencyMap) -> None:
         """Print all dependencies with their version counts.
@@ -144,3 +155,56 @@ class OutputFormatter:
             print(f"  ~ {dep}")
             print(f"      {result.branch1}: {old_versions}")
             print(f"      {result.branch2}: {new_versions}")
+
+    def _write_to_csv(self, result: ComparisonResult, project_name: str) -> None:
+        """Write comparison results to CSV.
+
+        Args:
+            result: The comparison result to write.
+            project_name: Name of the project.
+        """
+        if not self.csv_exporter:
+            return
+
+        # Write summary row with branch information
+        added_count = len(result.new_deps)
+        removed_count = len(result.removed_deps)
+        changed_count = len(result.version_changes)
+        self.csv_exporter.write_summary_row(
+            project_name, result.branch1, result.branch2, added_count, removed_count, changed_count
+        )
+
+        # Track totals for summary row
+        if not hasattr(self.csv_exporter, '_totals'):
+            self.csv_exporter._totals = {'added': 0, 'removed': 0, 'changed': 0}
+        
+        self.csv_exporter._totals['added'] += added_count
+        self.csv_exporter._totals['removed'] += removed_count
+        self.csv_exporter._totals['changed'] += changed_count
+
+        # Store detail rows for later writing (will be written after all projects)
+        if not hasattr(self.csv_exporter, '_detail_rows'):
+            self.csv_exporter._detail_rows = []
+
+        # Collect all detail rows for sorting
+        detail_rows = []
+
+        # Added dependencies
+        for dep in result.new_deps:
+            new_versions = result.dep_map2.get_versions(dep)
+            detail_rows.append((project_name, dep, "added", [], new_versions))
+
+        # Removed dependencies
+        for dep in result.removed_deps:
+            old_versions = result.dep_map1.get_versions(dep)
+            detail_rows.append((project_name, dep, "removed", old_versions, []))
+
+        # Changed dependencies
+        for dep, (old_versions, new_versions) in result.version_changes.items():
+            detail_rows.append((project_name, dep, "changed", old_versions, new_versions))
+
+        # Sort alphabetically by module name
+        detail_rows.sort(key=lambda x: x[1])
+
+        # Store for later writing
+        self.csv_exporter._detail_rows.extend(detail_rows)

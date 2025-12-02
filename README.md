@@ -15,6 +15,7 @@ A Python tool to analyze Go module dependencies across different branches and pr
 - 🔀 **Mix local paths and remote repositories** in the same configuration
 - 🧹 Automatic cleanup of temporary directories for cloned repositories
 - 🔒 Clear error messages for troubleshooting configuration and network issues
+- 📄 **CSV export** - export analysis results to CSV files for further processing
 
 ## Quick Start
 
@@ -101,6 +102,22 @@ Get detailed dependency lists:
 python3 -m go_deps_analyzer -p /path/to/project -b v1.0.0 -v
 ```
 
+#### CSV Export
+
+Export analysis results to a CSV file:
+```bash
+python3 -m go_deps_analyzer -c config.yaml -o results.csv
+```
+
+The CSV file will contain two tables:
+1. **Summary Table**: Shows aggregate statistics (added, removed, changed counts) for each project
+2. **Detailed Table**: Lists all dependency changes with old and new versions, sorted alphabetically
+
+You can combine CSV export with verbose console output:
+```bash
+python3 -m go_deps_analyzer -c config.yaml -v -o results.csv
+```
+
 ## Usage Examples
 
 ### Example 1: Kubernetes Version Comparison
@@ -178,6 +195,7 @@ Options:
   -p, --project PROJECT Path to a single project to analyze
   -b, --branch BRANCH   Branch to analyze (use with --project)
   -B, --branch2 BRANCH2 Second branch for comparison
+  -o, --csv-output PATH Path to CSV file for exporting analysis results
   --log-level LEVEL     Set logging level (DEBUG, INFO, WARNING, ERROR)
 ```
 
@@ -205,6 +223,58 @@ Comparison (v0.7.0 → v0.8.0):
 ```
 
 With `-v` flag, you'll also see the complete list of dependencies and their versions.
+
+## CSV Export Format
+
+When using the `-o` or `--csv-output` flag, the tool generates a CSV file with two tables:
+
+### Summary Table
+
+The summary table provides an overview of changes across all projects:
+
+| Column | Description |
+|--------|-------------|
+| Project | Name of the project (extracted from repo URL or path) |
+| Branch 1 | First branch/tag being compared |
+| Branch 2 | Second branch/tag being compared |
+| Added | Number of dependencies added |
+| Removed | Number of dependencies removed |
+| Changed | Number of dependencies with version changes |
+
+The summary table includes a **TOTAL** row at the end that sums up all counts across all projects.
+
+### Detailed Table
+
+The detailed table lists all dependency changes:
+
+| Column | Description |
+|--------|-------------|
+| Project | Name of the project |
+| Module | Go module name |
+| Change Type | One of: `added`, `removed`, or `changed` |
+| Old Versions | Semicolon-separated list of versions (empty for added dependencies) |
+| New Versions | Semicolon-separated list of versions (empty for removed dependencies) |
+
+**Notes:**
+- Dependencies are sorted alphabetically by module name within each project
+- Multiple versions are joined with semicolons (e.g., `v1.0.0;v1.1.0;v1.2.0`)
+- The CSV file uses UTF-8 encoding and follows RFC 4180 standard
+- Special characters (commas, quotes, newlines) are automatically escaped
+
+### Example CSV Output
+
+```csv
+Project,Branch 1,Branch 2,Added,Removed,Changed
+kubernetes,v1.33.0,v1.34.0,17,139,86
+etcd,v3.6.2,v3.6.2,0,0,0
+TOTAL,,,17,139,86
+
+Project,Module,Change Type,Old Versions,New Versions
+kubernetes,github.com/google/uuid,changed,v1.1.2;v1.6.0,v1.1.1;v1.6.0
+kubernetes,github.com/new/package,added,,v1.0.0
+kubernetes,github.com/old/package,removed,v2.0.0,
+etcd,go.etcd.io/etcd,changed,v3.5.0,v3.6.0
+```
 
 ## Configuration File Format
 
