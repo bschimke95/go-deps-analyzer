@@ -77,6 +77,23 @@ class Config:
                 "Invalid project configuration format: must be a string or dictionary"
             )
 
+        # Define valid configuration keys
+        valid_keys = {"path", "repo", "branch1", "branch2", "src_dir"}
+        
+        # Check for unknown keys
+        unknown_keys = set(proj_data.keys()) - valid_keys
+        if unknown_keys:
+            error_msg = (
+                f"Unknown configuration key(s): {', '.join(sorted(unknown_keys))}. "
+                f"Valid keys are: {', '.join(sorted(valid_keys))}"
+            )
+            
+            # Provide helpful hint for common mistake
+            if "src-dir" in unknown_keys:
+                error_msg += ". Note: use 'src_dir' (underscore) not 'src-dir' (hyphen)"
+            
+            raise ConfigError(error_msg)
+
         # Extract fields
         path = proj_data.get("path")
         repo = proj_data.get("repo")
