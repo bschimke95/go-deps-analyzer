@@ -37,6 +37,26 @@ projects:
     branch2: v1.34.0
   
   # ============================================================================
+  # REPOSITORIES WITH SUBDIRECTORIES
+  # ============================================================================
+  
+  # Repository with Go project in a subdirectory
+  # Use src_dir to specify the path from repository root to the go.mod location
+  - repo: https://github.com/user/monorepo.git
+    src_dir: services/api
+    branch1: v1.0.0
+    branch2: v2.0.0
+  
+  # Repository with nested Go project
+  - repo: https://github.com/kubernetes/kubernetes.git
+    src_dir: staging/src/k8s.io/api
+    branch1: v1.33.0
+    branch2: v1.34.0
+  
+  # Note: src_dir is only valid with 'repo', not 'path'
+  # For local paths, simply point directly to the directory containing go.mod
+  
+  # ============================================================================
   # MIXED CONFIGURATIONS
   # ============================================================================
   

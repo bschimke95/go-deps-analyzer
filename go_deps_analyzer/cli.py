@@ -3,6 +3,7 @@
 import argparse
 import logging
 import sys
+from pathlib import Path
 from typing import List
 
 from . import __version__
@@ -148,17 +149,32 @@ def _perform_analysis(
         formatter: Output formatter for displaying results.
         project_name: Name of the project for CSV export.
     """
+    # Combine with src_dir if specified
+    analysis_path = local_path
+    if config.src_dir:
+        analysis_path = str(Path(local_path) / config.src_dir)
+        
+        # Validate that the combined path exists
+        if not Path(analysis_path).exists():
+            raise AnalyzerError(
+                f"Source directory not found: {config.src_dir} "
+                f"(full path: {analysis_path})"
+            )
+    
     # Display project header with source type
     if config.is_repo_based:
-        project_label = f"Project: {config.repo} (cloned to {local_path})"
+        if config.src_dir:
+            project_label = f"Project: {config.repo} (src: {config.src_dir})"
+        else:
+            project_label = f"Project: {config.repo}"
     else:
         project_label = f"Project: {local_path}"
     
     formatter.print_section_header(project_label)
 
     try:
-        git_manager = GitManager(local_path)
-        analyzer = DependencyAnalyzer(local_path)
+        git_manager = GitManager(local_path)  # Still use repo root for git operations
+        analyzer = DependencyAnalyzer(analysis_path)  # Use src_dir for analysis
     except (GitError, AnalyzerError) as e:
         if config.is_repo_based:
             logger.error(f"Error initializing repository project '{config.repo}': {e}")

@@ -1,6 +1,8 @@
 """Data models for dependency analysis."""
 
+import os
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Dict, List, Set, Tuple
 
 
@@ -66,17 +68,31 @@ class ProjectConfig:
         repo: GitHub repository URL (mutually exclusive with path).
         branch1: First branch or tag to analyze.
         branch2: Second branch or tag for comparison (optional).
+        src_dir: Subdirectory within repo containing go.mod (only valid with repo).
     """
 
     path: str | None = None
     repo: str | None = None
     branch1: str | None = None
     branch2: str | None = None
+    src_dir: str | None = None
 
     def __post_init__(self):
-        """Validate that exactly one of path or repo is provided."""
+        """Validate configuration constraints."""
+        # Validate that exactly one of path or repo is provided
         if (self.path is None) == (self.repo is None):
             raise ValueError("Exactly one of 'path' or 'repo' must be provided")
+        
+        # Validate that src_dir is only used with repo
+        if self.src_dir is not None and self.repo is None:
+            raise ValueError("'src_dir' can only be used with 'repo', not 'path'")
+        
+        # Validate that src_dir is a relative path
+        if self.src_dir is not None:
+            if os.path.isabs(self.src_dir):
+                raise ValueError("'src_dir' must be a relative path from repository root")
+            if '..' in Path(self.src_dir).parts:
+                raise ValueError("'src_dir' cannot contain '..' path traversal")
 
     @property
     def is_repo_based(self) -> bool:

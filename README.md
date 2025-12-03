@@ -305,6 +305,53 @@ projects:
 
 **Important**: Each project must have exactly one of `path` or `repo`, not both.
 
+### Working with Subdirectories
+
+Some repositories contain multiple Go projects in subdirectories rather than at the repository root. For these cases, use the `src_dir` option to specify the path from the repository root to the directory containing the `go.mod` file.
+
+**Key Points:**
+- `src_dir` is only valid with `repo` (not `path`)
+- For local paths, simply point the `path` directly to the directory containing `go.mod`
+- `src_dir` must be a relative path from the repository root
+- Path traversal (`../`) is not allowed
+
+**Example Configuration:**
+
+```yaml
+projects:
+  # Repository with Go project in a subdirectory
+  - repo: https://github.com/user/monorepo.git
+    src_dir: services/api
+    branch1: v1.0.0
+    branch2: v2.0.0
+  
+  # Repository with nested Go project
+  - repo: https://github.com/kubernetes/kubernetes.git
+    src_dir: staging/src/k8s.io/api
+    branch1: v1.33.0
+    branch2: v1.34.0
+```
+
+**Real-World Example:**
+
+The Kubernetes repository contains multiple Go modules in the `staging/src/k8s.io/` directory. To analyze the `api` module:
+
+```bash
+# Create a config file
+cat > k8s-api-analysis.yaml << EOF
+projects:
+  - repo: https://github.com/kubernetes/kubernetes.git
+    src_dir: staging/src/k8s.io/api
+    branch1: v1.33.0
+    branch2: v1.34.0
+EOF
+
+# Run the analysis
+python3 -m go_deps_analyzer -c k8s-api-analysis.yaml -v
+```
+
+The tool will clone the Kubernetes repository, navigate to the `staging/src/k8s.io/api` subdirectory, analyze the dependencies there, and clean up afterward.
+
 ### Example: Analyzing Kubernetes
 
 ```bash

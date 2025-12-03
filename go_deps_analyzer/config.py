@@ -82,6 +82,7 @@ class Config:
         repo = proj_data.get("repo")
         branch1 = proj_data.get("branch1")
         branch2 = proj_data.get("branch2")
+        src_dir = proj_data.get("src_dir")
 
         # Validation happens in ProjectConfig.__post_init__
         try:
@@ -90,6 +91,7 @@ class Config:
                 repo=repo,
                 branch1=branch1,
                 branch2=branch2,
+                src_dir=src_dir,
             )
         except ValueError as e:
             raise ConfigError(f"Invalid project configuration: {e}") from e
