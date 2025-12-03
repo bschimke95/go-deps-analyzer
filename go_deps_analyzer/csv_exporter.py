@@ -55,11 +55,23 @@ class CSVExporter:
             raise CSVExportError("CSV writer not initialized")
 
         # Write summary table header
-        self.csv_writer.writerow(["Project", "Branch 1", "Branch 2", "Added", "Removed", "Changed"])
+        self.csv_writer.writerow([
+            "Project", "Branch 1", "Branch 2", 
+            "Unique Deps V1", "Unique Deps V2",
+            "Added", "Removed", "Changed"
+        ])
         self._summary_written = True
 
     def write_summary_row(
-        self, project_name: str, branch1: str, branch2: str, added: int, removed: int, changed: int
+        self, 
+        project_name: str, 
+        branch1: str, 
+        branch2: str, 
+        unique_deps_v1: int,
+        unique_deps_v2: int,
+        added: int, 
+        removed: int, 
+        changed: int
     ) -> None:
         """Write a row to the summary table.
 
@@ -67,6 +79,8 @@ class CSVExporter:
             project_name: Name of the project.
             branch1: Name of the first branch for this project.
             branch2: Name of the second branch for this project.
+            unique_deps_v1: Number of unique dependencies in version 1.
+            unique_deps_v2: Number of unique dependencies in version 2.
             added: Count of added dependencies.
             removed: Count of removed dependencies.
             changed: Count of changed dependencies.
@@ -74,7 +88,11 @@ class CSVExporter:
         if not self.csv_writer:
             raise CSVExportError("CSV writer not initialized")
 
-        self.csv_writer.writerow([project_name, branch1, branch2, added, removed, changed])
+        self.csv_writer.writerow([
+            project_name, branch1, branch2, 
+            unique_deps_v1, unique_deps_v2,
+            added, removed, changed
+        ])
 
     def write_total_summary_row(self, total_added: int, total_removed: int, total_changed: int) -> None:
         """Write a total summary row.
@@ -87,7 +105,7 @@ class CSVExporter:
         if not self.csv_writer:
             raise CSVExportError("CSV writer not initialized")
 
-        self.csv_writer.writerow(["TOTAL", "", "", total_added, total_removed, total_changed])
+        self.csv_writer.writerow(["TOTAL", "", "", "", "", total_added, total_removed, total_changed])
 
     def write_blank_separator(self) -> None:
         """Write a blank row separator."""

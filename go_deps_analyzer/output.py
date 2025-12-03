@@ -170,8 +170,13 @@ class OutputFormatter:
         added_count = len(result.new_deps)
         removed_count = len(result.removed_deps)
         changed_count = len(result.version_changes)
+        unique_deps_v1 = len(result.dep_map1)
+        unique_deps_v2 = len(result.dep_map2)
+        
         self.csv_exporter.write_summary_row(
-            project_name, result.branch1, result.branch2, added_count, removed_count, changed_count
+            project_name, result.branch1, result.branch2, 
+            unique_deps_v1, unique_deps_v2,
+            added_count, removed_count, changed_count
         )
 
         # Track totals for summary row
