@@ -171,7 +171,6 @@ class CSVExporter:
         if self.file_handle:
             try:
                 self.file_handle.close()
-                logger.info(f"CSV export completed: {self.output_path}")
             except Exception as e:
                 logger.error(f"Error closing CSV file: {e}")
                 raise CSVExportError(f"Failed to close CSV file: {e}") from e

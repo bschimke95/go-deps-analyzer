@@ -298,12 +298,26 @@ def main(argv: List[str] | None = None) -> int:
     logging.getLogger().setLevel(getattr(logging, args.log_level))
 
     # Create CSV exporter if output path is provided
+    # Use a temporary file that will be moved to final location only on success
     csv_exporter = None
+    temp_csv_path = None
     if args.csv_output:
         try:
-            csv_exporter = CSVExporter(args.csv_output)
+            import tempfile
+            # Create temporary file in the same directory as the target
+            target_path = Path(args.csv_output)
+            temp_fd, temp_csv_path = tempfile.mkstemp(
+                suffix='.csv.tmp',
+                dir=target_path.parent if target_path.parent.exists() else None,
+                prefix='.tmp_'
+            )
+            import os
+            os.close(temp_fd)  # Close the file descriptor, CSVExporter will open it
+            csv_exporter = CSVExporter(temp_csv_path)
         except CSVExportError as e:
             logger.error(f"Failed to initialize CSV export: {e}")
+            if temp_csv_path and Path(temp_csv_path).exists():
+                Path(temp_csv_path).unlink()
             return 1
 
     # Create output formatter
@@ -392,6 +406,32 @@ def main(argv: List[str] | None = None) -> int:
             except CSVExportError as e:
                 logger.error(f"Error closing CSV file: {e}")
                 has_errors = True
+            
+            # Move temp file to final location on success, or delete it on failure
+            if temp_csv_path:
+                temp_path = Path(temp_csv_path)
+                final_path = Path(args.csv_output)
+                
+                if has_errors:
+                    # Delete temporary file on failure
+                    try:
+                        if temp_path.exists():
+                            temp_path.unlink()
+                            logger.info(f"Removed temporary CSV file due to errors")
+                    except Exception as e:
+                        logger.error(f"Failed to delete temporary CSV file: {e}")
+                else:
+                    # Move temporary file to final location on success
+                    try:
+                        import shutil
+                        shutil.move(str(temp_path), str(final_path))
+                        logger.info(f"CSV export completed: {args.csv_output}")
+                    except Exception as e:
+                        logger.error(f"Failed to move CSV file to final location: {e}")
+                        has_errors = True
+                        # Try to clean up temp file
+                        if temp_path.exists():
+                            temp_path.unlink()
 
     return 1 if has_errors else 0
 
