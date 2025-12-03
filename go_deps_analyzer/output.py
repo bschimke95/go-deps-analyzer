@@ -181,11 +181,19 @@ class OutputFormatter:
 
         # Track totals for summary row
         if not hasattr(self.csv_exporter, '_totals'):
-            self.csv_exporter._totals = {'added': 0, 'removed': 0, 'changed': 0}
+            self.csv_exporter._totals = {
+                'added': 0, 
+                'removed': 0, 
+                'changed': 0,
+                'unique_deps_v1': 0,
+                'unique_deps_v2': 0
+            }
         
         self.csv_exporter._totals['added'] += added_count
         self.csv_exporter._totals['removed'] += removed_count
         self.csv_exporter._totals['changed'] += changed_count
+        self.csv_exporter._totals['unique_deps_v1'] += unique_deps_v1
+        self.csv_exporter._totals['unique_deps_v2'] += unique_deps_v2
 
         # Store detail rows for later writing (will be written after all projects)
         if not hasattr(self.csv_exporter, '_detail_rows'):

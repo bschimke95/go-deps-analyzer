@@ -368,6 +368,8 @@ def main(argv: List[str] | None = None) -> int:
             # Write total summary row
             if hasattr(csv_exporter, '_totals'):
                 csv_exporter.write_total_summary_row(
+                    csv_exporter._totals['unique_deps_v1'],
+                    csv_exporter._totals['unique_deps_v2'],
                     csv_exporter._totals['added'],
                     csv_exporter._totals['removed'],
                     csv_exporter._totals['changed']

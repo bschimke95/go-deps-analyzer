@@ -94,10 +94,19 @@ class CSVExporter:
             added, removed, changed
         ])
 
-    def write_total_summary_row(self, total_added: int, total_removed: int, total_changed: int) -> None:
+    def write_total_summary_row(
+        self, 
+        total_unique_deps_v1: int,
+        total_unique_deps_v2: int,
+        total_added: int, 
+        total_removed: int, 
+        total_changed: int
+    ) -> None:
         """Write a total summary row.
 
         Args:
+            total_unique_deps_v1: Total unique dependencies in version 1 across all projects.
+            total_unique_deps_v2: Total unique dependencies in version 2 across all projects.
             total_added: Total count of added dependencies across all projects.
             total_removed: Total count of removed dependencies across all projects.
             total_changed: Total count of changed dependencies across all projects.
@@ -105,7 +114,11 @@ class CSVExporter:
         if not self.csv_writer:
             raise CSVExportError("CSV writer not initialized")
 
-        self.csv_writer.writerow(["TOTAL", "", "", "", "", total_added, total_removed, total_changed])
+        self.csv_writer.writerow([
+            "TOTAL", "", "", 
+            total_unique_deps_v1, total_unique_deps_v2,
+            total_added, total_removed, total_changed
+        ])
 
     def write_blank_separator(self) -> None:
         """Write a blank row separator."""
