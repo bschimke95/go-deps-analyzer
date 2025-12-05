@@ -16,6 +16,7 @@ A Python tool to analyze Go module dependencies across different branches and pr
 - 🧹 Automatic cleanup of temporary directories for cloned repositories
 - 🔒 Clear error messages for troubleshooting configuration and network issues
 - 📄 **CSV export** - export analysis results to CSV files for further processing
+- 🔬 **Cross-configuration analysis** - compare dependencies across multiple configurations to identify shared and unique dependencies
 
 ## Quick Start
 
@@ -332,25 +333,6 @@ projects:
     branch2: v1.34.0
 ```
 
-**Real-World Example:**
-
-The Kubernetes repository contains multiple Go modules in the `staging/src/k8s.io/` directory. To analyze the `api` module:
-
-```bash
-# Create a config file
-cat > k8s-api-analysis.yaml << EOF
-projects:
-  - repo: https://github.com/kubernetes/kubernetes.git
-    src_dir: staging/src/k8s.io/api
-    branch1: v1.33.0
-    branch2: v1.34.0
-EOF
-
-# Run the analysis
-python3 -m go_deps_analyzer -c k8s-api-analysis.yaml -v
-```
-
-The tool will clone the Kubernetes repository, navigate to the `staging/src/k8s.io/api` subdirectory, analyze the dependencies there, and clean up afterward.
 
 ### Example: Analyzing Kubernetes
 
@@ -378,6 +360,172 @@ See [LICENSE](LICENSE) file for details.
 **Homayoon Alimohammadi**
 - Email: homayoon.alimohammadi@gmail.com
 - GitHub: [@HomayoonAlimohammadi](https://github.com/HomayoonAlimohammadi)
+
+## Cross-Configuration Dependency Analysis
+
+The `cross-config-stats` subcommand allows you to analyze and compare dependencies across multiple project configurations. This is useful for understanding dependency overlap between different release versions or deployment scenarios.
+
+### Features
+
+- Compare dependencies across 2 or more configurations
+- Identify shared dependencies (present in all configurations)
+- Find configuration-specific dependencies (unique to each configuration)
+- Calculate pairwise overlap statistics between configurations
+- Export results in text or JSON format
+
+### Usage
+
+```bash
+python3 -m go_deps_analyzer cross-config-stats \
+  --configs config1.yaml config2.yaml config3.yaml \
+  --csv-dir ./output \
+  --format text
+```
+
+### Command-Line Options
+
+```
+Required:
+  --configs CONFIG [CONFIG ...]  Paths to configuration YAML files to compare
+  --csv-dir DIR                  Directory containing CSV output files
+
+Optional:
+  --output PATH                  Path to output file (default: stdout)
+  --format {text,json,csv}       Output format (default: text)
+  --log-level LEVEL              Set logging level (DEBUG, INFO, WARNING, ERROR)
+```
+
+### File Naming Convention
+
+The tool expects CSV files to follow this naming pattern:
+- Configuration file: `vmware-1-33-to-1-34.yaml`
+- Expected CSV file: `vmware-1-33-to-1-34.csv`
+
+The CSV filename should match the configuration filename (without extension).
+
+### Example: Comparing Release Versions
+
+```bash
+# Step 1: Generate CSV files for each configuration
+python3 -m go_deps_analyzer -c vmware-1-33-to-1-34.yaml -o vmware-1-33-to-1-34.csv
+python3 -m go_deps_analyzer -c vmware-1-34-to-1-35.yaml -o vmware-1-34-to-1-35.csv
+
+# Step 2: Compare the configurations
+python3 -m go_deps_analyzer cross-config-stats \
+  --configs vmware-1-33-to-1-34.yaml vmware-1-34-to-1-35.yaml \
+  --csv-dir . \
+  --format text
+```
+
+### Text Output Format
+
+The text output includes:
+
+1. **Summary**: Total unique dependencies across all configurations and shared dependency count
+2. **Unique Counts**: Number of unique dependencies per configuration
+3. **Shared Dependencies**: List of dependencies present in all configurations
+4. **Configuration-Specific Dependencies**: Dependencies unique to each configuration
+5. **Pairwise Overlap Statistics**: Detailed comparison between each pair of configurations
+
+Example output:
+
+```
+================================================================================
+CROSS-CONFIGURATION DEPENDENCY ANALYSIS
+================================================================================
+
+SUMMARY
+--------------------------------------------------------------------------------
+Configurations analyzed: 2
+Total unique dependencies across all: 1579
+Shared dependencies (in all configs): 644
+
+UNIQUE DEPENDENCY COUNTS PER CONFIGURATION
+--------------------------------------------------------------------------------
+  vmware-1-33-to-1-34: 845
+  vmware-1-34-to-1-35: 1378
+
+SHARED DEPENDENCIES (present in all configurations)
+--------------------------------------------------------------------------------
+  github.com/google/uuid
+  github.com/prometheus/client_golang
+  ...
+
+CONFIGURATION-SPECIFIC DEPENDENCIES
+--------------------------------------------------------------------------------
+
+vmware-1-33-to-1-34 (201 unique):
+  github.com/coreos/etcd
+  github.com/dgrijalva/jwt-go
+  ...
+
+vmware-1-34-to-1-35 (734 unique):
+  github.com/DataDog/datadog-go/v5
+  github.com/hashicorp/vault/api
+  ...
+
+PAIRWISE OVERLAP STATISTICS
+--------------------------------------------------------------------------------
+
+vmware-1-33-to-1-34 vs vmware-1-34-to-1-35:
+  Shared: 644
+  Only in vmware-1-33-to-1-34: 201
+  Only in vmware-1-34-to-1-35: 734
+  Overlap: 40.79%
+```
+
+### CSV Output Format
+
+Export to CSV for spreadsheet analysis:
+
+```bash
+python3 -m go_deps_analyzer cross-config-stats \
+  --configs config1.yaml config2.yaml \
+  --csv-dir ./output \
+  --format csv \
+  --output stats.csv
+```
+
+The CSV output includes three tables:
+
+1. **Summary Table**: Configuration-level statistics
+   - Configuration name
+   - Unique dependencies count
+   - Shared dependencies count
+   - Configuration-specific dependencies count
+
+2. **Pairwise Overlap Table**: Comparison between each pair
+   - Config 1 and Config 2 names
+   - Shared count
+   - Config 1 only count
+   - Config 2 only count
+   - Overlap percentage
+
+3. **Dependency Detail Table**: Complete list of dependencies
+   - Dependency Type (Shared or Config-Specific)
+   - Configuration name
+   - Module name
+
+### JSON Output Format
+
+Export to JSON for programmatic processing:
+
+```bash
+python3 -m go_deps_analyzer cross-config-stats \
+  --configs config1.yaml config2.yaml \
+  --csv-dir ./output \
+  --format json \
+  --output stats.json
+```
+
+The JSON output includes:
+- `config_names`: List of configuration names
+- `total_unique_across_all`: Total unique dependencies
+- `unique_counts`: Dependency count per configuration
+- `shared_dependencies`: List of shared dependencies
+- `config_specific`: Dependencies unique to each configuration
+- `pairwise_overlap`: Detailed overlap statistics for each pair
+
 
 ## Version
 

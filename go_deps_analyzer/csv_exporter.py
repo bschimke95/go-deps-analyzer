@@ -2,8 +2,9 @@
 
 import csv
 import logging
+import re
 from pathlib import Path
-from typing import List
+from typing import Dict, List, Set, Tuple
 
 from .models import ProjectConfig
 
@@ -14,6 +15,58 @@ class CSVExportError(Exception):
     """Custom exception for CSV export errors."""
 
     pass
+
+
+def analyze_version_differences(aggregated_deps: Dict[str, Set[str]]) -> Tuple[int, int, int, int]:
+    """Analyze version differences in aggregated dependencies.
+
+    Args:
+        aggregated_deps: Dictionary mapping module names to sets of versions.
+
+    Returns:
+        Tuple of (modules_with_multiple_major, modules_with_multiple_minor, 
+                  modules_with_multiple_patch, total_module_versions)
+    """
+    modules_with_multiple_major = 0
+    modules_with_multiple_minor = 0
+    modules_with_multiple_patch = 0
+    total_module_versions = 0
+
+    # Regex to parse semantic versions
+    version_pattern = re.compile(r'^v?(\d+)\.(\d+)\.(\d+)')
+
+    for module_name, versions in aggregated_deps.items():
+        if len(versions) <= 1:
+            total_module_versions += len(versions)
+            continue
+
+        total_module_versions += len(versions)
+
+        # Parse versions into (major, minor, patch) tuples
+        parsed_versions = []
+        for version in versions:
+            match = version_pattern.match(version)
+            if match:
+                major, minor, patch = match.groups()
+                parsed_versions.append((int(major), int(minor), int(patch)))
+
+        if not parsed_versions:
+            continue
+
+        # Check for differences
+        majors = set(v[0] for v in parsed_versions)
+        minors = set(v[1] for v in parsed_versions)
+        patches = set(v[2] for v in parsed_versions)
+
+        if len(majors) > 1:
+            modules_with_multiple_major += 1
+        elif len(minors) > 1:
+            modules_with_multiple_minor += 1
+        elif len(patches) > 1:
+            modules_with_multiple_patch += 1
+
+    return (modules_with_multiple_major, modules_with_multiple_minor, 
+            modules_with_multiple_patch, total_module_versions)
 
 
 class CSVExporter:
@@ -61,6 +114,46 @@ class CSVExporter:
             "Added", "Removed", "Changed"
         ])
         self._summary_written = True
+
+    def write_single_branch_summary_header(self) -> None:
+        """Write summary header for single-branch statistics."""
+        if not self.csv_writer:
+            raise CSVExportError("CSV writer not initialized")
+
+        self.csv_writer.writerow(["Metric", "Count"])
+
+    def write_single_branch_summary_row(self, metric: str, count: int) -> None:
+        """Write a summary statistics row for single-branch mode.
+
+        Args:
+            metric: Name of the metric.
+            count: Count value for the metric.
+        """
+        if not self.csv_writer:
+            raise CSVExportError("CSV writer not initialized")
+
+        self.csv_writer.writerow([metric, count])
+
+    def write_single_branch_header(self) -> None:
+        """Write header for single-branch dependency list."""
+        if not self.csv_writer:
+            raise CSVExportError("CSV writer not initialized")
+
+        self.csv_writer.writerow(["Module", "Versions"])
+
+    def write_single_branch_row(self, module_name: str, versions: List[str]) -> None:
+        """Write a row for single-branch dependency list.
+
+        Args:
+            module_name: Name of the module/dependency.
+            versions: List of versions for this module.
+        """
+        if not self.csv_writer:
+            raise CSVExportError("CSV writer not initialized")
+
+        # Join versions with semicolons
+        versions_str = ";".join(versions) if versions else ""
+        self.csv_writer.writerow([module_name, versions_str])
 
     def write_summary_row(
         self, 

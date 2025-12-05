@@ -41,13 +41,14 @@ class OutputFormatter:
         print(f"\n--- {title} ---")
 
     def print_dependency_stats(
-        self, dep_map: DependencyMap, branch_name: str = ""
+        self, dep_map: DependencyMap, branch_name: str = "", project_name: str = ""
     ) -> None:
         """Print dependency statistics.
 
         Args:
             dep_map: The dependency map to analyze.
             branch_name: Optional branch name for context.
+            project_name: Optional project name for CSV export.
         """
         multi_version_deps = dep_map.get_multi_version_deps()
 
@@ -60,6 +61,10 @@ class OutputFormatter:
 
         if self.verbose:
             self._print_all_dependencies(dep_map)
+
+        # Write to CSV if exporter is available and in single-branch mode
+        if self.csv_exporter and project_name:
+            self._write_single_branch_to_csv(dep_map, project_name)
 
     def print_comparison_results(self, result: ComparisonResult, project_name: str = "") -> None:
         """Print comparison results between two branches.
@@ -185,15 +190,16 @@ class OutputFormatter:
                 'added': 0, 
                 'removed': 0, 
                 'changed': 0,
-                'unique_deps_v1': 0,
-                'unique_deps_v2': 0
+                'unique_deps_v1': set(),  # Track unique modules across all projects
+                'unique_deps_v2': set()   # Track unique modules across all projects
             }
         
         self.csv_exporter._totals['added'] += added_count
         self.csv_exporter._totals['removed'] += removed_count
         self.csv_exporter._totals['changed'] += changed_count
-        self.csv_exporter._totals['unique_deps_v1'] += unique_deps_v1
-        self.csv_exporter._totals['unique_deps_v2'] += unique_deps_v2
+        # Add unique modules to sets instead of summing counts
+        self.csv_exporter._totals['unique_deps_v1'].update(result.dep_map1.dependencies.keys())
+        self.csv_exporter._totals['unique_deps_v2'].update(result.dep_map2.dependencies.keys())
 
         # Store detail rows for later writing (will be written after all projects)
         if not hasattr(self.csv_exporter, '_detail_rows'):
@@ -221,3 +227,24 @@ class OutputFormatter:
 
         # Store for later writing
         self.csv_exporter._detail_rows.extend(detail_rows)
+
+    def _write_single_branch_to_csv(self, dep_map: DependencyMap, project_name: str) -> None:
+        """Collect single-branch dependency data for later aggregation.
+
+        Args:
+            dep_map: The dependency map to collect.
+            project_name: Name of the project.
+        """
+        if not self.csv_exporter:
+            return
+
+        # Mark that we're in single-branch mode
+        if not hasattr(self.csv_exporter, '_single_branch_mode'):
+            self.csv_exporter._single_branch_mode = True
+            self.csv_exporter._aggregated_deps = {}
+
+        # Aggregate dependencies across all projects
+        for module_name, versions in dep_map.dependencies.items():
+            if module_name not in self.csv_exporter._aggregated_deps:
+                self.csv_exporter._aggregated_deps[module_name] = set()
+            self.csv_exporter._aggregated_deps[module_name].update(versions)
